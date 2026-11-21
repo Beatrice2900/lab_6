@@ -1,0 +1,7 @@
+1;Ana;Pop
+-2;;ionescu
+12b;Mihai;Pop
+3;Ion
+4;maria;Popescu
+abc
+5;Elena;Dumitru
