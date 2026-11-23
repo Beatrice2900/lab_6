@@ -4,7 +4,11 @@ import domain.entities.Friendship;
 import domain.entities.Tuple;
 import domain.entities.User;
 import domain.exceptions.EntityNotFoundException;
+import repository.FriendsPagingRepository;
+import repository.PagingRepository;
 import repository.Repository;
+import util.paging.Page;
+import util.paging.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -110,5 +114,55 @@ public class UserService {
      */
     public List<User> findUsers(Predicate<User> filter) {
         return userRepo.findAll(filter);
+    }
+
+    /**
+     * Returns the users on the requested page, ordered by id, together with the total number of users.
+     * A page after the last one is empty. Pagination works only with the database repository.
+     *
+     * @param pageNumber the number of the page, starting from 0
+     * @param pageSize   the maximum number of users on a page
+     * @return the users on the page and the total number of users
+     * @throws IllegalArgumentException              if pageNumber is negative or pageSize is not positive
+     * @throws UnsupportedOperationException         if the repository does not support pagination
+     * @throws domain.exceptions.RepositoryException if the data cannot be read
+     */
+    @SuppressWarnings("unchecked")
+    public Page<User> getUsersPage(int pageNumber, int pageSize){
+        if(pageNumber <0 || pageSize<=0) {
+            throw new IllegalArgumentException("pageNumber must be >= 0 and pageSize must be > 0");
+        }
+        if(!(userRepo instanceof PagingRepository)){
+            throw new UnsupportedOperationException("Pagination is available only with repository.type=DATABASE");
+        }
+        PagingRepository<Long, User> pagingRepo = (PagingRepository<Long, User>) userRepo;
+        return pagingRepo.findAllOnPage(new Pageable(pageNumber, pageSize));
+    }
+
+
+    /**
+     * Returns the friends of a user on the requested page, ordered by id, together with the
+     * total number of friends. A user without friends gets an empty page. Pagination works
+     * only with the database repository.
+     *
+     * @param userId     the id of the user whose friends are returned
+     * @param pageNumber the number of the page, starting from 0
+     * @param pageSize   the maximum number of friends on a page
+     * @return the friends on the page and the total number of friends
+     * @throws IllegalArgumentException              if pageNumber is negative or pageSize is not positive
+     * @throws EntityNotFoundException               if no user has this id
+     * @throws UnsupportedOperationException         if the repository does not support pagination
+     * @throws domain.exceptions.RepositoryException if the data cannot be read
+     */
+    public Page<User> getFriendsPage(Long userId, int pageNumber, int pageSize){
+        if (pageNumber < 0 || pageSize <= 0) {
+            throw new IllegalArgumentException("pageNumber must be >= 0 and pageSize must be > 0");
+        }
+        getUser(userId);
+        if (!(friendshipRepo instanceof FriendsPagingRepository)) {
+            throw new UnsupportedOperationException("Pagination is available only with repository.type=DATABASE");
+        }
+        FriendsPagingRepository pagingRepo = (FriendsPagingRepository) friendshipRepo;
+        return pagingRepo.findFriendsOnPage(userId, new Pageable(pageNumber, pageSize));
     }
 }
