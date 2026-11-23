@@ -25,7 +25,7 @@ import java.util.Optional;
  * The id of a friendship is the pair (id1, id2), with id1 &lt; id2.
  */
 @SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve"})
-public class FriendshipDBRepository implements Repository<Tuple<Long, Long>, Friendship> {
+public class FriendshipDBRepository implements Repository<Tuple<Long, Long>, Friendship>,FriendsPagingRepository {
     private final Validator<Friendship> validator;
     private final String url;
     private final String user;
@@ -219,6 +219,7 @@ public class FriendshipDBRepository implements Repository<Tuple<Long, Long>, Fri
      * @throws IllegalArgumentException              if userId or pageable is null
      * @throws domain.exceptions.RepositoryException if the database cannot be accessed
      */
+    @Override
     public Page<User> findFriendsOnPage(Long userId, Pageable pageable){
         if(userId == null) {
             throw new IllegalArgumentException("userId must not be null\n");
