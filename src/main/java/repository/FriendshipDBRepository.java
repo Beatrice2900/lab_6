@@ -2,9 +2,12 @@ package repository;
 
 import domain.entities.Friendship;
 import domain.entities.Tuple;
+import domain.entities.User;
 import domain.exceptions.DuplicateEntityException;
 import domain.exceptions.EntityNotFoundException;
 import domain.validators.Validator;
+import util.paging.Page;
+import util.paging.Pageable;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -201,6 +204,66 @@ public class FriendshipDBRepository implements Repository<Tuple<Long, Long>, Fri
             }
         } catch (SQLException e) {
             throw SQLErrors.toRepositoryException("delete friendship " + id, e);
+        }
+    }
+
+
+    /**
+     * Returns the friends of a user, on the requested page, ordered by id, together with
+     * the total number of friends of the user. The page is cut in SQL, not in Java, and both
+     * queries use the same connection.
+     *
+     * @param userId   the id of the user whose friends are returned
+     * @param pageable the page to return: its number (starting from 0) and its size
+     * @return the friends on the page and the total number of friends
+     * @throws IllegalArgumentException              if userId or pageable is null
+     * @throws domain.exceptions.RepositoryException if the database cannot be accessed
+     */
+    public Page<User> findFriendsOnPage(Long userId, Pageable pageable){
+        if(userId == null) {
+            throw new IllegalArgumentException("userId must not be null\n");
+        }
+        if(pageable == null) {
+            throw new IllegalArgumentException("pageable must not be null\n");
+        }
+
+        String pageSql =
+                "SELECT u.id, u.first_name, u.last_name " +
+                        "FROM users u " +
+                        "JOIN friendships f " +
+                        "ON (u.id = f.id1 AND f.id2 = ?) OR (u.id = f.id2 AND f.id1 = ?) " +
+                        "ORDER BY u.id " +
+                        "LIMIT ? OFFSET ?";
+        String countSql = "SELECT COUNT(*) FROM friendships WHERE id1=? OR id2=?";
+        try(Connection connection = connect();
+        PreparedStatement pageStatement = connection.prepareStatement(pageSql);
+        PreparedStatement countStatement = connection.prepareStatement(countSql)) {
+
+            pageStatement.setLong(1, userId);
+            pageStatement.setLong(2,userId);
+            pageStatement.setInt(3, pageable.getPageSize());
+            pageStatement.setInt(4, pageable.getPageNumber() * pageable.getPageSize());
+
+            List<User> friends = new ArrayList<>();
+            try(ResultSet pageResult = pageStatement.executeQuery()){
+                while(pageResult.next()){
+                    friends.add(new User(pageResult.getLong("id"),
+                            pageResult.getString("first_name"),
+                            pageResult.getString("last_name")));
+                }
+            }
+
+            countStatement.setLong(1,userId);
+            countStatement.setLong(2,userId);
+
+            int total=0;
+            try(ResultSet countResult = countStatement.executeQuery()) {
+                countResult.next();
+                total = countResult.getInt(1);
+            }
+            return new Page<>(friends, total);
+        }catch (SQLException e){
+            throw SQLErrors.toRepositoryException("read friends page", e);
         }
     }
 }
