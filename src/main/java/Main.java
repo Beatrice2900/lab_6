@@ -36,7 +36,7 @@ public class Main {
             FriendshipService friendshipService = new FriendshipService(userRepo, friendshipRepo);
             NetworkService networkService = new NetworkService(userRepo, friendshipRepo);
 
-            new ConsoleUi(userService, friendshipService, networkService).run();
+            new ConsoleUi(userService, friendshipService, networkService, factory.getPageSize()).run();
         } catch (RepositoryException e) {
             System.out.println("Could not start the application: " + e.getMessage());
         }

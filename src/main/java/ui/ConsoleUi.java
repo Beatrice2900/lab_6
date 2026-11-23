@@ -10,10 +10,12 @@ import service.CriteriiUtilizator;
 import service.FriendshipService;
 import service.NetworkService;
 import service.UserService;
+import util.paging.Page;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.function.IntFunction;
 
 /**
  * Console user interface of the social network.
@@ -23,11 +25,13 @@ public class ConsoleUi {
     private FriendshipService friendshipService;
     private NetworkService networkService;
     private Scanner scanner = new Scanner(System.in);
+    private final int pageSize;
 
-    public ConsoleUi(UserService userService, FriendshipService friendshipService, NetworkService networkService){
+    public ConsoleUi(UserService userService, FriendshipService friendshipService, NetworkService networkService,int pageSize){
         this.userService = userService;
         this.friendshipService = friendshipService;
         this.networkService = networkService;
+        this.pageSize = pageSize;
     }
 
     private void printMenu(){
@@ -41,6 +45,8 @@ public class ConsoleUi {
         System.out.println("8 - Show friendships");
         System.out.println("9 - Search users");
         System.out.println("10-Find user by id");
+        System.out.println("11-Show users on pages");
+        System.out.println("12-Show friends of a user on pages");
         System.out.println("0 - Exit");
         System.out.print("Option: ");
     }
@@ -51,6 +57,52 @@ public class ConsoleUi {
     private String readText(String label) {
         System.out.print(label);
         return scanner.nextLine().trim();
+    }
+
+    /**
+     * Lets the user browse pages of users using next/previous commands.
+     * The page count is recomputed each time a page is loaded.
+     *
+     * @param pageLoader function that returns the page with the given 0-based page number
+     */
+    private void browsePages(IntFunction<Page<User>> pageLoader) {
+        int pageNumber = 0;
+        while (true) {
+            Page<User> page = pageLoader.apply(pageNumber);
+            int total = page.getTotalNumberOfElements();
+            int totalPages = Math.max(1, (total + pageSize - 1) / pageSize);
+
+            if (pageNumber >= totalPages) {
+                pageNumber = totalPages - 1;
+                continue;
+            }
+
+            if (total == 0) {
+                System.out.println("No users to show.");
+            } else {
+                page.getElementsOnPage().forEach(System.out::println);
+            }
+            System.out.println("Pagina " + (pageNumber + 1) + " din " + totalPages);
+
+            String command = readText("[n] next, [p] previous, [0] back: ");
+            if (command.equals("0")) {
+                break;
+            } else if (command.equals("n")) {
+                if (pageNumber + 1 < totalPages) {
+                    pageNumber++;
+                } else {
+                    System.out.println("This is the last page.");
+                }
+            } else if (command.equals("p")) {
+                if (pageNumber > 0) {
+                    pageNumber--;
+                } else {
+                    System.out.println("This is the first page.");
+                }
+            } else {
+                System.out.println("Invalid command.");
+            }
+        }
     }
 
     /**
@@ -127,6 +179,14 @@ public class ConsoleUi {
                         if (!user.isPresent()) {
                             System.out.println("User not found.");
                         }
+                        break;
+                    }
+                    case "11":
+                        browsePages(p -> userService.getUsersPage(p, pageSize));
+                        break;
+                    case "12": {
+                        Long userId = readId("User id: ");
+                        browsePages(p -> userService.getFriendsPage(userId, p, pageSize));
                         break;
                     }
                     default:

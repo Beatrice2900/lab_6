@@ -127,4 +127,24 @@ public class RepositoryFactory {
         }
         return creator.apply(validator, userRepo);
     }
+
+    /**
+     * Reads the page size used by the user interface from the configuration.
+     *
+     * @return the number of elements shown on one page
+     * @throws RepositoryException if the property is missing, is not a number or is not positive
+     */
+    public int getPageSize() {
+        String value = getRequired("ui.page.size");
+        int pageSize;
+        try {
+            pageSize = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new RepositoryException("ui.page.size must be a number");
+        }
+        if (pageSize <= 0) {
+            throw new RepositoryException("ui.page.size must be greater than 0");
+        }
+        return pageSize;
+    }
 }
